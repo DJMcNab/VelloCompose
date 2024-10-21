@@ -8,10 +8,14 @@ class NativeLib {
      */
     external fun stringFromJNI(): String
 
+    @Suppress("KotlinJniMissingFunction") // This is defined in Rust code
+    external fun initRust()
+
     companion object {
         // Used to load the 'vello' library on application startup.
         init {
             System.loadLibrary("vello")
+            NativeLib().initRust()
         }
     }
 }

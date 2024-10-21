@@ -3,4 +3,12 @@ name = "vello_jni"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["staticlib"]
+
 [dependencies]
+log = "0.4.22"
+android_logger = "0.14.1"
+
+jni = "0.21.1"
+libc = "0.2.161"
