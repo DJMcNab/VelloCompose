@@ -6,9 +6,8 @@ use std::{
 };
 
 use android_logger::Config;
-use jni::{objects::JObject, JNIEnv};
 
-static INIT: LazyLock<()> = LazyLock::new(|| {
+pub(crate) static INIT: LazyLock<()> = LazyLock::new(|| {
     abort_on_panic(|| {
         // TODO: Make this configurable or otherwise optional
         log::set_max_level(log::LevelFilter::Debug);
@@ -16,14 +15,6 @@ static INIT: LazyLock<()> = LazyLock::new(|| {
         forward_stdio_to_logcat();
     });
 });
-
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_org_linebender_vello_NativeLib_initRust<'local>(
-    _: JNIEnv<'local>,
-    _: JObject<'local>,
-) {
-    let _ = &*INIT;
-}
 
 fn forward_stdio_to_logcat() -> std::thread::JoinHandle<std::io::Result<()>> {
     // XXX: make this stdout/stderr redirection an optional / opt-in feature?...

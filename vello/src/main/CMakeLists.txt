@@ -50,4 +50,5 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         android
         log
         # TODO: Should this/these be PUBLIC?
-        vello_jni)
+        vello_jni
+        )
