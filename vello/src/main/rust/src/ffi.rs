@@ -12,7 +12,7 @@ use crate::{
     VelloState,
 };
 
-/// Trick the linker into keeping this library
+/// Trick the linker into keeping this library around
 #[unsafe(no_mangle)]
 pub extern "C" fn linker_trick_rust() {}
 
@@ -63,10 +63,14 @@ pub extern "system" fn Java_org_linebender_vello_Vello_setSurface<'local>(
 ) {
     abort_on_panic(|| unsafe {
         let state = access_stored_state(state);
-        let window = NativeWindow::from_surface(env.get_native_interface(), *surface).unwrap();
         let mut state = state.lock().unwrap();
-        state.set_window(window);
-        state.render_default();
+        if surface.is_null() {
+            state.remove_window();
+        } else {
+            let window = NativeWindow::from_surface(env.get_native_interface(), *surface).unwrap();
+            state.set_window(window);
+            state.render_default();
+        }
     })
 }
 

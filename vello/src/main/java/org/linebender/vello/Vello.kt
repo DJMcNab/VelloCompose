@@ -1,14 +1,38 @@
 package org.linebender.vello
 
+import android.graphics.Color
 import android.util.Log
 import android.view.Surface
 import android.view.SurfaceHolder
-import dalvik.annotation.optimization.CriticalNative
-import dalvik.annotation.optimization.FastNative
 
+class VelloSurface internal constructor(
+    val vello: Vello,
+    val surface: Surface,
+    width: Int,
+    height: Int
+) {
+
+    var width: Int = width
+        private set
+    var height: Int = height
+        private set
+
+    fun resize(width: Int, height: Int) {
+        this.width = width;
+        this.height = height;
+    }
+}
+
+/**
+ * A global instance of a Vello renderer.
+ */
 class Vello {
-    private var holder: SurfaceHolder? = null
+    /** A pointer to the state of this renderer in Rust */
     private var state: Long = 0
+
+    fun createSurface(surface: Surface, width: Int, height: Int): VelloSurface {
+        return VelloSurface(this, surface, width, height)
+    }
 
     /**
      * Set the surface this
@@ -37,10 +61,9 @@ class Vello {
             }
 
             override fun surfaceDestroyed(holder: SurfaceHolder) {
-                TODO("Not yet implemented")
+                Log.i(null, "unsetting surface");
+                self.setSurface(self.state, null);
             }
-
-
         })
     }
 
@@ -52,18 +75,24 @@ class Vello {
         state = 0
     }
 
-    //    @Suppress("KotlinJniMissingFunction") // This is defined in Rust code
+    fun setColor(color: Color) {
+        val color = color.toArgb();
+        setColor(state, color);
+    }
+
+    @Suppress("KotlinJniMissingFunction") // This is defined in Rust code
     private external fun initialise(): Long
 
     @Suppress("KotlinJniMissingFunction") // This is defined in Rust code
     private external fun setColor(state: Long, color: Int)
 
-    private external fun setSurface(state: Long, surface: Surface)
+    @Suppress("KotlinJniMissingFunction") // This is defined in Rust code
+    private external fun setSurface(state: Long, surface: Surface?)
 
     companion object {
         // Used to load the 'vello' library on application startup.
         init {
-            System.loadLibrary("vello")
+            System.loadLibrary("vello_jni")
             Log.e(null, "Test loaded library")
             initRust();
         }
@@ -75,7 +104,7 @@ class Vello {
          *
          * You might wish to customise the logging and stdout/stderr behaviour, so may not wish to call this.
          */
-//        @Suppress("KotlinJniMissingFunction") // This is defined in Rust code
+        @Suppress("KotlinJniMissingFunction") // This is defined in Rust code
         @JvmStatic
         external fun initRust()
     }

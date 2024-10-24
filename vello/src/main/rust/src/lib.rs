@@ -10,7 +10,7 @@ use vello::{
 };
 use wgpu::{
     rwh::{DisplayHandle, HasDisplayHandle, HasWindowHandle},
-    TextureFormat,
+    Instance, InstanceFlags, TextureFormat,
 };
 
 pub struct VelloState {
@@ -22,8 +22,18 @@ pub struct VelloState {
 
 impl VelloState {
     fn new() -> Self {
+        let instance = Instance::new(wgpu::InstanceDescriptor {
+            backends: wgpu::util::backend_bits_from_env().unwrap_or(wgpu::Backends::PRIMARY),
+            dx12_shader_compiler: wgpu::Dx12Compiler::Fxc,
+            flags: InstanceFlags::DEBUG,
+            ..Default::default()
+        });
+        let cx = RenderContext {
+            instance,
+            devices: Vec::new(),
+        };
         VelloState {
-            cx: RenderContext::new(),
+            cx,
             renderer: None,
             surface: None,
             color: 0xff00ff,
@@ -105,7 +115,7 @@ impl VelloState {
                 scene,
                 &texture,
                 &RenderParams {
-                    base_color: Color::WHITE,
+                    base_color: Color::ALICE_BLUE,
                     antialiasing_method: vello::AaConfig::Area,
                     width: texture.texture.width(),
                     height: texture.texture.height(),
@@ -115,7 +125,7 @@ impl VelloState {
         texture.present();
         self.cx.devices[surface.dev_id]
             .device
-            .poll(wgpu::MaintainBase::Wait);
+            .poll(wgpu::MaintainBase::Poll);
     }
 
     fn render_default(&mut self) {

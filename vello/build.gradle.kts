@@ -34,6 +34,9 @@ android {
             version = "3.22.1"
         }
     }
+    buildFeatures {
+        compose = true
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -44,10 +47,14 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.compose.ui.ui)
+    implementation(libs.androidx.foundation)
+    implementation(libs.androidx.runtime.android)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
-    implementation(libs.material)
+
+//    implementation(libs.material)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
