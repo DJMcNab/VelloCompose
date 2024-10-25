@@ -1,3 +1,8 @@
+#![allow(
+    unsafe_code,
+    reason = "Higher-level deny is intended to be scoped in lib.rs module, but this is a submodule of that"
+)]
+
 use std::{
     fs::File,
     io::{BufRead, BufReader},
@@ -19,7 +24,7 @@ pub(crate) static INIT: LazyLock<()> = LazyLock::new(|| {
 fn forward_stdio_to_logcat() -> std::thread::JoinHandle<std::io::Result<()>> {
     // XXX: make this stdout/stderr redirection an optional / opt-in feature?...
 
-    // Safety
+    // Safety: Trivial from libc function usage
     let file = unsafe {
         let mut logpipe: [RawFd; 2] = Default::default();
         libc::pipe2(logpipe.as_mut_ptr(), libc::O_CLOEXEC);

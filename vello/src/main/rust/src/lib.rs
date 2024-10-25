@@ -1,7 +1,17 @@
+#![forbid(unsafe_attr_outside_unsafe, unsafe_op_in_unsafe_fn)]
+// Don't allow unsafe code in the main module. Note that it is allowed in the other modules
+#![deny(unsafe_code)]
+
 pub mod ffi;
 pub mod util;
 
+use std::collections::HashMap;
+
 use ndk::native_window::NativeWindow;
+use parley::{
+    fontique::{Collection, CollectionOptions, SourceCache},
+    FontContext, LayoutContext,
+};
 use vello::{
     kurbo::{Affine, Rect},
     peniko::{Brush, Color, Fill},
@@ -13,14 +23,44 @@ use wgpu::{
     Instance, InstanceFlags, TextureFormat,
 };
 
-pub struct VelloState {
+pub struct VelloJni {
     cx: vello::util::RenderContext,
-    renderer: Option<(vello::Renderer, TextureFormat)>,
-    surface: Option<(RenderSurface<'static>, NativeWindow)>,
-    color: i32,
+    /// Renderers. One per device in `cx`.
+    // Practically, we expect this to always be a 1-vector.
+    renderers: Vec<vello::Renderer>,
+    surfaces: HashMap<i64, TargetSurface>,
+    blit_pipelines: HashMap<TextureFormat, BlitPipeline>,
+
+    fonts: FontContext,
+    layout_ctx: LayoutContext<vello::peniko::Brush>,
 }
 
-impl VelloState {
+struct BlitPipeline {}
+
+pub enum SurfaceKind {
+    VariableFont {
+        text: String,
+        size: f32,
+        weight: f32,
+        // We don't store the Parley layout here, because if we are using this, we are re-rendering anyway.
+    },
+    Unset,
+}
+
+struct TargetSurface {
+    /// The Vello rendering surface for this texture.
+    ///
+    /// Note that we do *not* use `render_to_surface` in this implementation.
+    render_surface: RenderSurface<'static>,
+    /// The Android window underlying this target.
+    ///
+    /// TODO: This is currently unused
+    window: NativeWindow,
+    /// The style of rendering used for this `Surface`
+    kind: SurfaceKind,
+}
+
+impl VelloJni {
     fn new() -> Self {
         let instance = Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::util::backend_bits_from_env().unwrap_or(wgpu::Backends::PRIMARY),
@@ -32,12 +72,25 @@ impl VelloState {
             instance,
             devices: Vec::new(),
         };
-        VelloState {
+        VelloJni {
             cx,
-            renderer: None,
-            surface: None,
-            color: 0xff00ff,
+            renderers: Default::default(),
+            surfaces: Default::default(),
+            blit_pipelines: Default::default(),
+            fonts: FontContext {
+                // We will be Arc<Mutex>ing this struct, so it doesn't need to be shared.
+                source_cache: SourceCache::default(),
+                collection: Collection::new(CollectionOptions {
+                    shared: false,
+                    system_fonts: false,
+                }),
+            },
+            layout_ctx: LayoutContext::new(),
         }
+    }
+
+    fn new_window(&mut self, window: NativeWindow, surface_id: i64, width: u32, height: u32) {
+        todo!()
     }
 
     fn set_window(&mut self, native_window: NativeWindow) {
@@ -78,20 +131,6 @@ impl VelloState {
             self.renderer = Some((renderer, surface.format))
         }
         self.surface = Some((surface, native_window));
-    }
-
-    fn resize_surface(&mut self) {
-        if let Some((surface, window)) = self.surface.as_mut() {
-            self.cx.resize_surface(
-                surface,
-                window.width().try_into().unwrap(),
-                window.height().try_into().unwrap(),
-            );
-        }
-    }
-
-    fn remove_window(&mut self) {
-        self.surface = None;
     }
 
     fn render(&mut self, scene: &Scene) {
@@ -139,6 +178,10 @@ impl VelloState {
             &Rect::new(0., 0., 200., 400.),
         );
         self.render(&scene);
+    }
+
+    fn perform_render(&mut self, surfaces: &[i64]) -> _ {
+        todo!()
     }
 }
 
