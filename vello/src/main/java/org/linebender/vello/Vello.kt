@@ -37,7 +37,7 @@ class VelloSurface internal constructor(
     fun resize(width: Int, height: Int) {
         this.width = width;
         this.height = height;
-        onResize?.invoke(width, height)
+//        onResize?.invoke(width, height)
         // TODO: Reconfigure the underlying wgpu `Surface`
         // TODO: Rerender this surface immediately
         // This does mean that work can't be shared, but that's OK
@@ -132,7 +132,7 @@ class Vello(private val coroutineScope: CoroutineScope) {
         // Overflow handling: long, so overflow implausible
         nextSurfaceId += 1
         newSurface(state, surface, id, width, height)
-        return VelloSurface(surface, this, nextSurfaceId, width, height)
+        return VelloSurface(surface, this, id, width, height)
     }
 
     init {

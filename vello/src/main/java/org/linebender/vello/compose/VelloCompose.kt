@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Modifier
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.selects.select
 import org.linebender.vello.VariableFontSurface
@@ -50,7 +51,12 @@ fun VelloContext(allowNested: Boolean = false, content: @Composable() () -> Unit
 }
 
 @Composable
-fun VariableFontsVelloSurface(text: String, fontSize: Float, fontWeight: Float = 400f) {
+fun VariableFontsVelloSurface(
+    text: String,
+    fontSize: Float,
+    fontWeight: Float = 400f,
+    modifier: Modifier = Modifier
+) {
     val textChannel = remember { Channel<String>(Channel.CONFLATED) }
     VariableFontsSendChannel(textChannel, text)
 
@@ -67,7 +73,7 @@ fun VariableFontsVelloSurface(text: String, fontSize: Float, fontWeight: Float =
     val currentFontSize = rememberUpdatedState(fontSize);
     val currentFontWeight = rememberUpdatedState(fontWeight);
 
-    BaseVelloSurface {
+    BaseVelloSurface(modifier) {
         val vfSurface = VariableFontSurface(
             this,
             currentText.value,
@@ -102,10 +108,10 @@ private fun <V> VariableFontsSendChannel(channel: Channel<V>, value: V) {
  * Must be called inside a [VelloContext].
  */
 @Composable
-fun BaseVelloSurface(withSurface: suspend VelloSurface.() -> Unit) {
+fun BaseVelloSurface(modifier: Modifier = Modifier, withSurface: suspend VelloSurface.() -> Unit) {
     val vello = LocalVello.current
         ?: throw IllegalStateException("Tried to use Vello outside of a `VelloContext`");
-    AndroidExternalSurface {
+    AndroidExternalSurface(modifier) {
         onSurface { surface, initialWidth, initialHeight ->
             val velloSurface = vello.createSurface(surface, initialWidth, initialHeight)
             surface.onChanged { newWidth, newHeight ->

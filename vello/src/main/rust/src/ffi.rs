@@ -52,6 +52,12 @@ pub extern "system" fn Java_org_linebender_vello_Vello_initialise<'local>(
     })
 }
 
+/// # Safety
+///
+/// - `env` must be a valid JNI environment
+/// - `surface` must be a `Surface` associated with `env`
+/// - `state` must be a value which was returned from [`Java_org_linebender_vello_Vello_initialise`]
+///    and which has not been freed.
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_org_linebender_vello_Vello_newSurface<'local>(
     env: JNIEnv<'local>,
@@ -80,6 +86,16 @@ pub unsafe extern "system" fn Java_org_linebender_vello_Vello_newSurface<'local>
     })
 }
 
+/// # Safety
+///
+/// - `env` must be a valid JNI environment
+/// - `state` must be a value which was returned from [`Java_org_linebender_vello_Vello_initialise`]
+///    and which has not been freed.
+/// - `updated_surfaces` must be a valid Long Array from Java.
+///
+/// # Aborts
+///
+/// If `updated_surfaces` does not contain at least `n_updated_surfaces`.
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_org_linebender_vello_Vello_doRender<'local>(
     env: JNIEnv<'local>,
@@ -92,14 +108,22 @@ pub unsafe extern "system" fn Java_org_linebender_vello_Vello_doRender<'local>(
         // Safety: Precondition of this function that state is correct
         let state = unsafe { access_stored_state(state) };
         let mut state = state.lock().unwrap();
+        let state = &mut *state;
 
         let len = n_updated_surfaces.try_into().unwrap();
         state.updated_surfaces_scratch.resize(len, 0);
-        env.get_long_array_region(&updated_surfaces, 0, &mut state.updated_surfaces_scratch);
+        env.get_long_array_region(&updated_surfaces, 0, &mut state.updated_surfaces_scratch)
+            .unwrap();
         state.vello.perform_render(&state.updated_surfaces_scratch);
     });
 }
 
+/// # Safety
+///
+/// - `env` must be a valid JNI environment
+/// - `state` must be a value which was returned from [`Java_org_linebender_vello_Vello_initialise`]
+///    and which has not been freed.
+/// - `text` must be a valid `String` from Java.
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_org_linebender_vello_Vello_makeVariableFontSurface<'local>(
     mut env: JNIEnv<'local>,
@@ -127,6 +151,11 @@ pub unsafe extern "system" fn Java_org_linebender_vello_Vello_makeVariableFontSu
         }
     })
 }
+
+/// # Safety
+///
+/// - `state` must be a value which was returned from [`Java_org_linebender_vello_Vello_initialise`]
+///    and which has not been freed.
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_org_linebender_vello_Vello_updateVariableFontParameters<
     'local,
@@ -153,6 +182,13 @@ pub unsafe extern "system" fn Java_org_linebender_vello_Vello_updateVariableFont
         }
     })
 }
+
+/// # Safety
+///
+/// - `env` must be a valid JNI environment
+/// - `state` must be a value which was returned from [`Java_org_linebender_vello_Vello_initialise`]
+///    and which has not been freed.
+/// - `new_text` must be a valid `String` from Java.
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_org_linebender_vello_Vello_updateVariableFontText<'local>(
     mut env: JNIEnv<'local>,
@@ -177,6 +213,9 @@ pub unsafe extern "system" fn Java_org_linebender_vello_Vello_updateVariableFont
     })
 }
 
+/// Access a stored
+/// - `state` must be a value which was returned from [`Java_org_linebender_vello_Vello_initialise`]
+///    and which has not been freed.
 unsafe fn access_stored_state(state: jlong) -> Arc<Mutex<FfiState>> {
     let value: usize = bytemuck::cast(state);
     let ptr = value as *const Mutex<FfiState>;
