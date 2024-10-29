@@ -22,7 +22,7 @@ FetchContent_MakeAvailable(Corrosion)
 project("vello")
 
 # Import targets defined in a package or workspace manifest `Cargo.toml` file
-corrosion_import_crate(MANIFEST_PATH rust/Cargo.toml)
+corrosion_import_crate(MANIFEST_PATH rust/Cargo.toml PROFILE release)
 
 add_library(${CMAKE_PROJECT_NAME} SHARED
         # Clearly, ideally we wouldn't have any cpp code.

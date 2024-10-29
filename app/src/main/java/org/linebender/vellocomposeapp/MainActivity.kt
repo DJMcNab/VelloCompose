@@ -4,6 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,9 +18,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import org.linebender.vello.Vello
 import org.linebender.vello.compose.VariableFontsVelloSurface
 import org.linebender.vello.compose.VelloContext
@@ -60,15 +67,90 @@ fun GreetingPreview() {
 
 @Composable
 fun CustomView() {
+    val infiniteTransition = rememberInfiniteTransition(label = "infinite")
+    val weight by infiniteTransition.animateFloat(
+        initialValue = 100f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "fontWeight"
+    )
     VariableFontsVelloSurface(
-        "00:00:10", 40f, modifier = Modifier
+        "00:00:10", 70f, modifier = Modifier
             .fillMaxWidth()
-            .height(Dp(300f))
+            .height(60.dp)
     )
     Text("In Between")
     VariableFontsVelloSurface(
-        "00:00:20", 40f, 800f, modifier = Modifier
+        "00:00:20", 70f, weight, modifier = Modifier
             .fillMaxWidth()
-            .height(Dp(300f))
+            .height(60.dp)
+    )
+    VariableFontsVelloSurface(
+        "00:00:20", 70f, weight, modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+    )
+    VariableFontsVelloSurface(
+        "00:00:20", 70f, weight, modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+    )
+    VariableFontsVelloSurface(
+        "00:00:20", 70f, weight, modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+    )
+    VariableFontsVelloSurface(
+        "00:00:20", 70f, weight, modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+    )
+    VariableFontsVelloSurface(
+        "00:00:20", 70f, weight, modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+    )
+    VariableFontsVelloSurface(
+        "00:00:20", 70f, weight, modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+    )
+    VariableFontsVelloSurface(
+        "00:00:20", 70f, weight, modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+    )
+    VariableFontsVelloSurface(
+        "00:00:20", 70f, weight, modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+    )
+    VariableFontsVelloSurface(
+        "00:00:20", 70f, weight, modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+    )
+    VariableFontsVelloSurface(
+        "00:00:20", 70f, weight, modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+    )
+    VariableFontsVelloSurface(
+        "00:00:20", 70f, weight, modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+    )
+    VariableFontsVelloSurface(
+        "00:00:20", 70f, weight, modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+    )
+    VariableFontsVelloSurface(
+        "00:00:20", 70f, weight, modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
     )
 }

@@ -9,10 +9,7 @@ use std::collections::HashMap;
 
 use guillotiere::{euclid::Size2D, SimpleAtlasAllocator};
 use ndk::native_window::NativeWindow;
-use parley::{
-    fontique::{Collection, CollectionOptions, SourceCache},
-    Alignment, FontContext, FontWeight, PositionedLayoutItem, StyleProperty,
-};
+use parley::{Alignment, FontContext, FontWeight, PositionedLayoutItem, StyleProperty};
 use vello::{
     kurbo::{Affine, Rect, Vec2},
     peniko::{Color, Fill, Mix},
@@ -23,9 +20,10 @@ use vello::{
 use wgpu::{
     rwh::{DisplayHandle, HasDisplayHandle, HasWindowHandle},
     BindGroupDescriptor, BindGroupEntry, BindGroupLayout, Buffer, BufferDescriptor, BufferUsages,
-    CommandEncoderDescriptor, Device, Instance, InstanceFlags, MultisampleState,
+    CommandEncoder, CommandEncoderDescriptor, Device, Instance, InstanceFlags, MultisampleState,
     PipelineCompilationOptions, PrimitiveState, RenderPassColorAttachment, RenderPassDescriptor,
-    RenderPipelineDescriptor, TextureDescriptor, TextureFormat, TextureViewDescriptor,
+    RenderPipelineDescriptor, SurfaceTexture, TextureDescriptor, TextureFormat,
+    TextureViewDescriptor,
 };
 
 // TODO: Bytemuck? a struct?
@@ -141,10 +139,8 @@ impl BlitPipeline {
         to_texture: &wgpu::TextureView,
         x: i32,
         y: i32,
+        encoder: &mut CommandEncoder,
     ) {
-        let mut encoder = device_handle
-            .device
-            .create_command_encoder(&CommandEncoderDescriptor { label: None });
         let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
             label: Some("vello_jni.blit.pass"),
             color_attachments: &[Some(RenderPassColorAttachment {
@@ -188,11 +184,12 @@ impl BlitPipeline {
         pass.set_bind_group(0, &bind_group, &[]);
         pass.set_pipeline(&self.render_pipeline);
         pass.draw(0..6, 0..1);
+        // This drop operation is semantic, so we make it explicit
         drop(pass);
-        device_handle.queue.submit([encoder.finish()]);
     }
 }
 
+#[derive(Clone)]
 pub enum SurfaceKind {
     VariableFont {
         text: String,
@@ -244,11 +241,7 @@ impl SurfaceKind {
                 let mut layout = builder.build(text);
                 layout.break_all_lines(Some(500.));
                 layout.align(Some(500.), Alignment::Start);
-                log::error!("Got text {text}");
-                log::error!("{}", layout.is_empty());
-                log::error!("width: {}", layout.full_width());
                 for line in layout.lines() {
-                    log::error!("Got line {}", line.is_empty());
                     for item in line.items() {
                         let PositionedLayoutItem::GlyphRun(glyph_run) = item else {
                             continue;
@@ -272,9 +265,10 @@ impl SurfaceKind {
                         scene
                             .draw_glyphs(font)
                             .brush(&glyph_run.style().brush)
-                            .hint(true)
+                            // We think this might be animated, so don't enable hinting
+                            .hint(false)
                             .glyph_transform(glyph_xform)
-                            .font_size(dbg!(font_size))
+                            .font_size(font_size)
                             .normalized_coords(&coords)
                             .draw(
                                 Fill::NonZero,
@@ -282,11 +276,11 @@ impl SurfaceKind {
                                     let gx = x + glyph.x;
                                     let gy = y - glyph.y;
                                     x += glyph.advance;
-                                    dbg!(vello::Glyph {
+                                    vello::Glyph {
                                         id: glyph.id as _,
                                         x: gx,
                                         y: gy,
-                                    })
+                                    }
                                 }),
                             );
                     }
@@ -337,7 +331,7 @@ impl VelloJni {
     }
 
     fn new_window(&mut self, window: NativeWindow, surface_id: SurfaceId, width: u32, height: u32) {
-        log::error!("Window Size: {width}x{height}");
+        log::info!("Window Size: {width}x{height}");
         assert!(
             !self.surfaces.contains_key(&surface_id),
             "Tried to use duplicate surface id."
@@ -348,7 +342,7 @@ impl VelloJni {
             },
             width,
             height,
-            wgpu::PresentMode::AutoNoVsync,
+            wgpu::PresentMode::Mailbox,
         ))
         .expect("Could create surface");
         assert_eq!(
@@ -388,7 +382,7 @@ impl VelloJni {
                     height: height.try_into().unwrap(),
                     ..Default::default()
                 })
-                .unwrap();
+                .expect("Should have room for surface");
             allocations.insert(*surface_id, zone);
             final_scene.push_layer(
                 Mix::Clip,
@@ -429,6 +423,10 @@ impl VelloJni {
                 },
             )
             .unwrap();
+        let mut encoder = device_handle
+            .device
+            .create_command_encoder(&CommandEncoderDescriptor { label: None });
+        let mut targets: Vec<SurfaceTexture> = Vec::new();
         for (surface_id, range) in allocations {
             let surface = self.surfaces.get(&surface_id).unwrap();
             let blit = renderer
@@ -450,10 +448,14 @@ impl VelloJni {
                     .create_view(&TextureViewDescriptor::default()),
                 range.min.x,
                 range.min.y,
+                &mut encoder,
             );
-            current_texture.present();
+            targets.push(current_texture);
         }
-
+        device_handle.queue.submit([encoder.finish()]);
+        for target in targets {
+            target.present();
+        }
         device_handle.device.poll(wgpu::MaintainBase::Poll);
     }
 
@@ -476,8 +478,8 @@ impl VelloJni {
         let target_texture = device.create_texture(&TextureDescriptor {
             label: Some("VelloJNI Target Texture"),
             size: wgpu::Extent3d {
-                width: 4096,
-                height: 4096,
+                width: 2048,
+                height: 2560,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
@@ -494,94 +496,6 @@ impl VelloJni {
             blit_pipelines: HashMap::new(),
             texture_view,
         })
-    }
-
-    fn set_window(&mut self, native_window: NativeWindow) {
-        /*
-        let width = native_window.width().try_into().expect("positive width");
-        let height = native_window.height().try_into().expect("positive height");
-        log::error!("Window Size: {width}x{height}");
-        DisplayHandle::android();
-        let surface = pollster::block_on(self.cx.create_surface(
-            AndroidWindowHandle {
-                window: native_window.clone(),
-            },
-            width,
-            height,
-            wgpu::PresentMode::AutoNoVsync,
-        ))
-        .expect("Could create surface");
-        if let Some((_, format)) = self.renderer.as_mut() {
-            if surface.format != *format {
-                log::warn!(
-                    "Deleting renderer due to mismatched surface format. Was {:?}, needed {:?}",
-                    *format,
-                    surface.format
-                );
-                let _ = self.renderer.take();
-            }
-        }
-        if self.renderer.is_none() {
-            let renderer = Renderer::new(
-                &self.cx.devices[surface.dev_id].device,
-                RendererOptions {
-                    surface_format: Some(surface.format),
-                    use_cpu: false,
-                    antialiasing_support: AaSupport::area_only(),
-                    num_init_threads: None,
-                },
-            )
-            .expect("Could create renderer");
-            self.renderer = Some((renderer, surface.format))
-        }
-        self.surface = Some((surface, native_window)); */
-    }
-
-    fn render(&mut self, scene: &Scene) {
-        /* let Some((surface, _)) = self.surface.as_ref() else {
-            log::warn!("Tried to render with no surface");
-            return;
-        };
-        let Some((renderer, _)) = self.renderer.as_mut() else {
-            log::warn!("Tried to render with no renderer");
-            return;
-        };
-        let device = &self.cx.devices[surface.dev_id];
-        let Ok(texture) = surface.surface.get_current_texture() else {
-            log::warn!("Failed to get surface texture");
-            return;
-        };
-        renderer
-            .render_to_surface(
-                &device.device,
-                &device.queue,
-                scene,
-                &texture,
-                &RenderParams {
-                    base_color: Color::ALICE_BLUE,
-                    antialiasing_method: vello::AaConfig::Area,
-                    width: texture.texture.width(),
-                    height: texture.texture.height(),
-                },
-            )
-            .expect("Could render");
-        texture.present();
-        self.cx.devices[surface.dev_id]
-            .device
-            .poll(wgpu::MaintainBase::Poll); */
-    }
-
-    fn render_default(&mut self) {
-        /* let mut scene = Scene::new();
-        let [_, r, g, b]: [u8; 4] = bytemuck::cast(self.color);
-        scene.fill(
-            Fill::EvenOdd,
-            Affine::IDENTITY,
-            &Brush::Solid(Color { r, g, b, a: 255 }),
-            None,
-            &Rect::new(0., 0., 200., 400.),
-        );
-        self.render(&scene); */
     }
 }
 
